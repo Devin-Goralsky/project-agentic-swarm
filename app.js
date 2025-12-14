@@ -1,77 +1,85 @@
-// Scene, Camera, Renderer setup
+// Professional 3D Visualizer
+// Scene components
 let scene, camera, renderer, currentShape, light, lightHelper;
-let rotationX = 0, rotationY = 0, rotationZ = 0;
+let ambientLight, grid, axes, particles, particleSystem;
 
-// Animation state
+// State
+let rotationX = 0, rotationY = 0, rotationZ = 0;
+let scaleValue = 1.0;
 let autoRotateX = false, autoRotateY = false, autoRotateZ = false;
 let rotationSpeed = 1.0;
 let lightOrbitEnabled = false;
 let cameraOrbitEnabled = false;
 let rainbowModeEnabled = false;
 let isPaused = false;
+let floatAnimation = false;
+let pulseAnimation = false;
 
-// FPS tracking
+// FPS and performance
 let lastTime = performance.now();
 let frames = 0;
 let fps = 0;
 
-// Mouse drag state
+// Mouse interaction
 let isDragging = false;
 let previousMousePosition = { x: 0, y: 0 };
 
-// Time tracking for animations
+// Animation time
 let time = 0;
 
-// Shape colors
-const shapeColors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3, 0xf38181, 0xaa96da];
+// Colors
+const shapeColors = [0x6366f1, 0x8b5cf6, 0x06b6d4, 0x10b981, 0xf59e0b, 0xef4444];
 
-// Initialize the scene
+// Initialize
 function init() {
-    // Create scene
+    const canvas = document.getElementById('main-canvas');
+    const width = canvas.parentElement.clientWidth;
+    const height = canvas.parentElement.clientHeight;
+
+    // Scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf5f5f5);
+    scene.background = new THREE.Color(0x1a1a2e);
 
-    // Create camera
-    const container = document.getElementById('canvas-container');
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-
+    // Camera
     camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.z = 5;
+    camera.position.set(0, 0, 5);
 
-    // Create renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    // Renderer
+    renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true,
+        preserveDrawingBuffer: true,
+        alpha: true
+    });
     renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    container.appendChild(renderer.domElement);
 
-    // Create initial shape (cube)
-    createShape('cube');
-
-    // Add ambient light for base illumination
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+    // Lights
+    ambientLight = new THREE.AmbientLight(0x404040, 0.5);
     scene.add(ambientLight);
 
-    // Create colored point light
     light = new THREE.PointLight(0xffffff, 1, 100);
     light.position.set(5, 5, 5);
     light.castShadow = true;
-    light.shadow.mapSize.width = 1024;
-    light.shadow.mapSize.height = 1024;
+    light.shadow.mapSize.width = 2048;
+    light.shadow.mapSize.height = 2048;
     scene.add(light);
 
-    // Add visual indicator for light position
-    const lightGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+    // Light helper
+    const lightGeometry = new THREE.SphereGeometry(0.15, 16, 16);
     const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
     lightHelper = new THREE.Mesh(lightGeometry, lightMaterial);
     lightHelper.position.copy(light.position);
     scene.add(lightHelper);
 
-    // Add a ground plane to show shadows
-    const planeGeometry = new THREE.PlaneGeometry(10, 10);
-    const planeMaterial = new THREE.MeshPhongMaterial({
-        color: 0xcccccc,
+    // Ground plane
+    const planeGeometry = new THREE.PlaneGeometry(20, 20);
+    const planeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1a1a24,
+        roughness: 0.8,
+        metalness: 0.2,
         side: THREE.DoubleSide
     });
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
@@ -80,44 +88,48 @@ function init() {
     plane.receiveShadow = true;
     scene.add(plane);
 
-    // Handle window resize
+    // Create main shape
+    createShape('cube');
+
+    // Event listeners
     window.addEventListener('resize', onWindowResize, false);
-
-    // Setup mouse controls
     setupMouseControls();
-
-    // Setup keyboard controls
     setupKeyboardControls();
+    setupUI();
 
-    // Setup UI controls
-    setupControls();
-
-    // Start animation loop
+    // Start animation
     animate();
 }
 
-// Create different shapes
+// Create shape geometries
 function createShape(shapeType) {
-    // Remove existing shape
     if (currentShape) {
         scene.remove(currentShape);
     }
 
     let geometry;
-    let materials;
 
     switch (shapeType) {
         case 'sphere':
-            geometry = new THREE.SphereGeometry(1.5, 32, 32);
+            geometry = new THREE.SphereGeometry(1.5, 64, 64);
             break;
         case 'torus':
-            geometry = new THREE.TorusGeometry(1.2, 0.5, 16, 100);
+            geometry = new THREE.TorusGeometry(1.2, 0.5, 32, 100);
             break;
         case 'pyramid':
             geometry = new THREE.ConeGeometry(1.5, 2, 4);
             break;
         case 'cylinder':
-            geometry = new THREE.CylinderGeometry(1, 1, 2, 32);
+            geometry = new THREE.CylinderGeometry(1, 1, 2, 64);
+            break;
+        case 'dodecahedron':
+            geometry = new THREE.DodecahedronGeometry(1.5);
+            break;
+        case 'octahedron':
+            geometry = new THREE.OctahedronGeometry(1.5);
+            break;
+        case 'tetrahedron':
+            geometry = new THREE.TetrahedronGeometry(1.5);
             break;
         case 'cube':
         default:
@@ -125,37 +137,37 @@ function createShape(shapeType) {
             break;
     }
 
-    // Create materials
-    if (shapeType === 'cube') {
-        materials = shapeColors.map(color =>
-            new THREE.MeshPhongMaterial({ color: color })
-        );
-    } else {
-        materials = new THREE.MeshPhongMaterial({ color: shapeColors[0] });
-    }
+    // Create material
+    const material = new THREE.MeshStandardMaterial({
+        color: shapeColors[0],
+        roughness: 0.5,
+        metalness: 0,
+        transparent: true,
+        opacity: 1
+    });
 
-    currentShape = new THREE.Mesh(geometry, materials);
+    currentShape = new THREE.Mesh(geometry, material);
     currentShape.castShadow = true;
     currentShape.receiveShadow = true;
     scene.add(currentShape);
 
-    updateShapeRotation();
+    updateShapeTransform();
 }
 
-// Handle window resize
+// Window resize
 function onWindowResize() {
-    const container = document.getElementById('canvas-container');
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    const canvas = document.getElementById('main-canvas');
+    const width = canvas.parentElement.clientWidth;
+    const height = canvas.parentElement.clientHeight;
 
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
 }
 
-// Setup mouse drag controls
+// Mouse controls
 function setupMouseControls() {
-    const canvas = renderer.domElement;
+    const canvas = document.getElementById('main-canvas');
 
     canvas.addEventListener('mousedown', (e) => {
         isDragging = true;
@@ -170,31 +182,24 @@ function setupMouseControls() {
             rotationY += deltaX * 0.5;
             rotationX += deltaY * 0.5;
 
-            // Keep values in 0-360 range
             rotationY = rotationY % 360;
             rotationX = rotationX % 360;
 
-            // Update sliders
             document.getElementById('rotationY').value = rotationY;
             document.getElementById('rotationX').value = rotationX;
             document.getElementById('rotationY-value').textContent = `${Math.round(rotationY)}°`;
             document.getElementById('rotationX-value').textContent = `${Math.round(rotationX)}°`;
 
-            updateShapeRotation();
+            updateShapeTransform();
             previousMousePosition = { x: e.clientX, y: e.clientY };
         }
     });
 
-    canvas.addEventListener('mouseup', () => {
-        isDragging = false;
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-        isDragging = false;
-    });
+    canvas.addEventListener('mouseup', () => isDragging = false);
+    canvas.addEventListener('mouseleave', () => isDragging = false);
 }
 
-// Setup keyboard shortcuts
+// Keyboard controls
 function setupKeyboardControls() {
     document.addEventListener('keydown', (e) => {
         const step = 5;
@@ -204,41 +209,25 @@ function setupKeyboardControls() {
                 rotationY = (rotationY - step) % 360;
                 document.getElementById('rotationY').value = rotationY;
                 document.getElementById('rotationY-value').textContent = `${Math.round(rotationY)}°`;
-                updateShapeRotation();
+                updateShapeTransform();
                 break;
             case 'ArrowRight':
                 rotationY = (rotationY + step) % 360;
                 document.getElementById('rotationY').value = rotationY;
                 document.getElementById('rotationY-value').textContent = `${Math.round(rotationY)}°`;
-                updateShapeRotation();
+                updateShapeTransform();
                 break;
             case 'ArrowUp':
                 rotationX = (rotationX - step) % 360;
                 document.getElementById('rotationX').value = rotationX;
                 document.getElementById('rotationX-value').textContent = `${Math.round(rotationX)}°`;
-                updateShapeRotation();
+                updateShapeTransform();
                 break;
             case 'ArrowDown':
                 rotationX = (rotationX + step) % 360;
                 document.getElementById('rotationX').value = rotationX;
                 document.getElementById('rotationX-value').textContent = `${Math.round(rotationX)}°`;
-                updateShapeRotation();
-                break;
-            case '+':
-            case '=':
-                const currentZoom = parseFloat(document.getElementById('zoomLevel').value);
-                const newZoom = Math.max(2, currentZoom - 0.5);
-                document.getElementById('zoomLevel').value = newZoom;
-                document.getElementById('zoomLevel-value').textContent = newZoom.toFixed(1);
-                camera.position.z = newZoom;
-                break;
-            case '-':
-            case '_':
-                const currentZoomOut = parseFloat(document.getElementById('zoomLevel').value);
-                const newZoomOut = Math.min(15, currentZoomOut + 0.5);
-                document.getElementById('zoomLevel').value = newZoomOut;
-                document.getElementById('zoomLevel-value').textContent = newZoomOut.toFixed(1);
-                camera.position.z = newZoomOut;
+                updateShapeTransform();
                 break;
             case ' ':
                 isPaused = !isPaused;
@@ -252,68 +241,75 @@ function setupKeyboardControls() {
     });
 }
 
-// Setup slider controls
-function setupControls() {
-    // Shape select
-    const shapeSelect = document.getElementById('shapeSelect');
-    shapeSelect.addEventListener('change', (e) => {
+// Setup UI controls
+function setupUI() {
+    // Collapsible sections
+    document.querySelectorAll('.section-header[data-section]').forEach(header => {
+        header.addEventListener('click', () => {
+            const section = header.closest('.control-section');
+            section.classList.toggle('collapsed');
+        });
+    });
+
+    // Shape
+    document.getElementById('shapeSelect').addEventListener('change', (e) => {
         createShape(e.target.value);
     });
 
-    // Wireframe toggle
-    const wireframeToggle = document.getElementById('wireframeToggle');
-    wireframeToggle.addEventListener('change', (e) => {
-        if (Array.isArray(currentShape.material)) {
-            currentShape.material.forEach(mat => mat.wireframe = e.target.checked);
-        } else {
+    // Wireframe
+    document.getElementById('wireframeToggle').addEventListener('change', (e) => {
+        if (currentShape) {
             currentShape.material.wireframe = e.target.checked;
         }
     });
 
-    // Background color
-    const bgColorPicker = document.getElementById('bgColor');
-    bgColorPicker.addEventListener('input', (e) => {
-        scene.background = new THREE.Color(e.target.value);
-    });
-
-    // Fog toggle
-    const fogToggle = document.getElementById('fogToggle');
-    fogToggle.addEventListener('change', (e) => {
+    // Show Axes
+    document.getElementById('showAxes').addEventListener('change', (e) => {
         if (e.target.checked) {
-            scene.fog = new THREE.Fog(scene.background.getHex(), 5, 15);
-        } else {
-            scene.fog = null;
+            if (!axes) {
+                axes = new THREE.AxesHelper(3);
+                scene.add(axes);
+            }
+        } else if (axes) {
+            scene.remove(axes);
+            axes = null;
         }
     });
 
-    // Rotation controls
-    const rotationXSlider = document.getElementById('rotationX');
-    const rotationYSlider = document.getElementById('rotationY');
-    const rotationZSlider = document.getElementById('rotationZ');
-
-    const rotationXValue = document.getElementById('rotationX-value');
-    const rotationYValue = document.getElementById('rotationY-value');
-    const rotationZValue = document.getElementById('rotationZ-value');
-
-    rotationXSlider.addEventListener('input', (e) => {
-        rotationX = parseFloat(e.target.value);
-        rotationXValue.textContent = `${rotationX}°`;
-        updateShapeRotation();
+    // Show Grid
+    document.getElementById('showGrid').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            if (!grid) {
+                grid = new THREE.GridHelper(10, 10, 0x6366f1, 0x2a2a3a);
+                grid.position.y = -2;
+                scene.add(grid);
+            }
+        } else if (grid) {
+            scene.remove(grid);
+            grid = null;
+        }
     });
 
-    rotationYSlider.addEventListener('input', (e) => {
-        rotationY = parseFloat(e.target.value);
-        rotationYValue.textContent = `${rotationY}°`;
-        updateShapeRotation();
+    // Rotation sliders
+    ['rotationX', 'rotationY', 'rotationZ'].forEach(axis => {
+        const slider = document.getElementById(axis);
+        const valueDisplay = document.getElementById(`${axis}-value`);
+
+        slider.addEventListener('input', (e) => {
+            window[axis] = parseFloat(e.target.value);
+            valueDisplay.textContent = `${Math.round(window[axis])}°`;
+            updateShapeTransform();
+        });
     });
 
-    rotationZSlider.addEventListener('input', (e) => {
-        rotationZ = parseFloat(e.target.value);
-        rotationZValue.textContent = `${rotationZ}°`;
-        updateShapeRotation();
+    // Scale
+    document.getElementById('scale').addEventListener('input', (e) => {
+        scaleValue = parseFloat(e.target.value);
+        document.getElementById('scale-value').textContent = scaleValue.toFixed(1);
+        updateShapeTransform();
     });
 
-    // Auto-rotation controls
+    // Auto-rotation
     document.getElementById('autoRotateX').addEventListener('change', (e) => {
         autoRotateX = e.target.checked;
     });
@@ -328,64 +324,31 @@ function setupControls() {
 
     document.getElementById('rotationSpeed').addEventListener('input', (e) => {
         rotationSpeed = parseFloat(e.target.value);
-        document.getElementById('rotationSpeed-value').textContent = rotationSpeed.toFixed(1);
+        document.getElementById('rotationSpeed-value').textContent = `${rotationSpeed.toFixed(1)}x`;
     });
 
-    // Zoom control
-    document.getElementById('zoomLevel').addEventListener('input', (e) => {
-        const zoom = parseFloat(e.target.value);
-        camera.position.z = zoom;
-        document.getElementById('zoomLevel-value').textContent = zoom.toFixed(1);
+    // Float animation
+    document.getElementById('floatAnimation').addEventListener('change', (e) => {
+        floatAnimation = e.target.checked;
     });
 
-    // Camera orbit
-    document.getElementById('cameraOrbit').addEventListener('change', (e) => {
-        cameraOrbitEnabled = e.target.checked;
+    // Pulse animation
+    document.getElementById('pulseAnimation').addEventListener('change', (e) => {
+        pulseAnimation = e.target.checked;
     });
 
-    // Light controls
-    const lightColorPicker = document.getElementById('lightColor');
-    const lightIntensitySlider = document.getElementById('lightIntensity');
-    const lightXSlider = document.getElementById('lightX');
-    const lightYSlider = document.getElementById('lightY');
-    const lightZSlider = document.getElementById('lightZ');
-
-    const lightIntensityValue = document.getElementById('lightIntensity-value');
-    const lightXValue = document.getElementById('lightX-value');
-    const lightYValue = document.getElementById('lightY-value');
-    const lightZValue = document.getElementById('lightZ-value');
-
-    lightColorPicker.addEventListener('input', (e) => {
+    // Light color
+    document.getElementById('lightColor').addEventListener('input', (e) => {
         const color = new THREE.Color(e.target.value);
         light.color = color;
         lightHelper.material.color = color;
     });
 
-    lightIntensitySlider.addEventListener('input', (e) => {
+    // Light intensity
+    document.getElementById('lightIntensity').addEventListener('input', (e) => {
         const intensity = parseFloat(e.target.value);
         light.intensity = intensity;
-        lightIntensityValue.textContent = intensity.toFixed(1);
-    });
-
-    lightXSlider.addEventListener('input', (e) => {
-        const x = parseFloat(e.target.value);
-        light.position.x = x;
-        lightHelper.position.x = x;
-        lightXValue.textContent = x.toFixed(1);
-    });
-
-    lightYSlider.addEventListener('input', (e) => {
-        const y = parseFloat(e.target.value);
-        light.position.y = y;
-        lightHelper.position.y = y;
-        lightYValue.textContent = y.toFixed(1);
-    });
-
-    lightZSlider.addEventListener('input', (e) => {
-        const z = parseFloat(e.target.value);
-        light.position.z = z;
-        lightHelper.position.z = z;
-        lightZValue.textContent = z.toFixed(1);
+        document.getElementById('lightIntensity-value').textContent = intensity.toFixed(1);
     });
 
     // Light orbit
@@ -393,22 +356,35 @@ function setupControls() {
         lightOrbitEnabled = e.target.checked;
     });
 
+    // Ambient light
+    document.getElementById('ambientLight').addEventListener('change', (e) => {
+        ambientLight.visible = e.target.checked;
+    });
+
     // Material properties
-    document.getElementById('shininess').addEventListener('input', (e) => {
-        const shininess = parseFloat(e.target.value);
-        document.getElementById('shininess-value').textContent = shininess;
-        updateMaterialProperty('shininess', shininess);
+    document.getElementById('metalness').addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        if (currentShape) {
+            currentShape.material.metalness = value;
+        }
+        document.getElementById('metalness-value').textContent = value.toFixed(1);
+    });
+
+    document.getElementById('roughness').addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        if (currentShape) {
+            currentShape.material.roughness = value;
+        }
+        document.getElementById('roughness-value').textContent = value.toFixed(1);
     });
 
     document.getElementById('opacity').addEventListener('input', (e) => {
-        const opacity = parseFloat(e.target.value) / 100;
-        document.getElementById('opacity-value').textContent = `${Math.round(opacity * 100)}%`;
-        updateMaterialProperty('opacity', opacity);
-        updateMaterialProperty('transparent', opacity < 1);
-    });
-
-    document.getElementById('metallicToggle').addEventListener('change', (e) => {
-        toggleMetallic(e.target.checked);
+        const value = parseFloat(e.target.value) / 100;
+        if (currentShape) {
+            currentShape.material.opacity = value;
+            currentShape.material.transparent = value < 1;
+        }
+        document.getElementById('opacity-value').textContent = `${Math.round(value * 100)}%`;
     });
 
     // Rainbow mode
@@ -416,112 +392,116 @@ function setupControls() {
         rainbowModeEnabled = e.target.checked;
     });
 
-    // Random button
-    document.getElementById('random-btn').addEventListener('click', randomizeSettings);
-
-    // Screenshot button
-    document.getElementById('screenshot-btn').addEventListener('click', takeScreenshot);
-
-    // Preset buttons
-    document.querySelectorAll('.preset-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            applyPreset(btn.dataset.preset);
-        });
+    // Environment map
+    document.getElementById('envMap').addEventListener('change', (e) => {
+        if (e.target.checked && currentShape) {
+            // Create simple environment map
+            const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256);
+            const cubeCamera = new THREE.CubeCamera(0.1, 1000, cubeRenderTarget);
+            scene.add(cubeCamera);
+            cubeCamera.update(renderer, scene);
+            currentShape.material.envMap = cubeRenderTarget.texture;
+            currentShape.material.envMapIntensity = 0.5;
+        } else if (currentShape) {
+            currentShape.material.envMap = null;
+        }
     });
 
-    // Reset button
-    const resetButton = document.getElementById('reset-btn');
-    resetButton.addEventListener('click', resetAll);
+    // Particles
+    document.getElementById('particles').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            createParticles();
+        } else if (particleSystem) {
+            scene.remove(particleSystem);
+            particleSystem = null;
+        }
+    });
+
+    // Fog
+    document.getElementById('fogToggle').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            scene.fog = new THREE.Fog(scene.background.getHex(), 5, 20);
+        } else {
+            scene.fog = null;
+        }
+    });
+
+    // Background color
+    document.getElementById('bgColor').addEventListener('input', (e) => {
+        scene.background = new THREE.Color(e.target.value);
+    });
+
+    // Camera distance
+    document.getElementById('zoomLevel').addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        camera.position.z = value;
+        document.getElementById('zoomLevel-value').textContent = value;
+    });
+
+    // Camera orbit
+    document.getElementById('cameraOrbit').addEventListener('change', (e) => {
+        cameraOrbitEnabled = e.target.checked;
+    });
+
+    // Quick actions
+    document.getElementById('random-btn').addEventListener('click', randomizeSettings);
+    document.getElementById('screenshot-btn').addEventListener('click', takeScreenshot);
+    document.getElementById('reset-btn').addEventListener('click', resetAll);
+
+    // Fullscreen
+    document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
+
+    // Presets
+    document.querySelectorAll('.preset-card').forEach(card => {
+        card.addEventListener('click', () => {
+            applyPreset(card.dataset.preset);
+        });
+    });
 }
 
-// Update shape rotation based on slider values
-function updateShapeRotation() {
+// Create particle system
+function createParticles() {
+    const particleCount = 1000;
+    const particlesGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount * 3; i += 3) {
+        positions[i] = (Math.random() - 0.5) * 15;
+        positions[i + 1] = (Math.random() - 0.5) * 15;
+        positions[i + 2] = (Math.random() - 0.5) * 15;
+    }
+
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const particlesMaterial = new THREE.PointsMaterial({
+        color: 0x6366f1,
+        size: 0.05,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+    });
+
+    particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particleSystem);
+}
+
+// Update shape transform
+function updateShapeTransform() {
     if (currentShape) {
         currentShape.rotation.x = (rotationX * Math.PI) / 180;
         currentShape.rotation.y = (rotationY * Math.PI) / 180;
         currentShape.rotation.z = (rotationZ * Math.PI) / 180;
+        currentShape.scale.set(scaleValue, scaleValue, scaleValue);
     }
 }
 
-// Update material properties
-function updateMaterialProperty(property, value) {
-    if (!currentShape) return;
-
-    if (Array.isArray(currentShape.material)) {
-        currentShape.material.forEach(mat => {
-            mat[property] = value;
-            mat.needsUpdate = true;
-        });
-    } else {
-        currentShape.material[property] = value;
-        currentShape.material.needsUpdate = true;
-    }
-}
-
-// Toggle metallic material
-function toggleMetallic(isMetallic) {
-    if (!currentShape) return;
-
-    const shapeType = document.getElementById('shapeSelect').value;
-    const geometry = currentShape.geometry;
-
-    scene.remove(currentShape);
-
-    if (isMetallic) {
-        if (shapeType === 'cube') {
-            const materials = shapeColors.map(color =>
-                new THREE.MeshStandardMaterial({
-                    color: color,
-                    metalness: 0.8,
-                    roughness: 0.2
-                })
-            );
-            currentShape = new THREE.Mesh(geometry, materials);
-        } else {
-            const material = new THREE.MeshStandardMaterial({
-                color: shapeColors[0],
-                metalness: 0.8,
-                roughness: 0.2
-            });
-            currentShape = new THREE.Mesh(geometry, material);
-        }
-    } else {
-        if (shapeType === 'cube') {
-            const materials = shapeColors.map(color =>
-                new THREE.MeshPhongMaterial({ color: color })
-            );
-            currentShape = new THREE.Mesh(geometry, materials);
-        } else {
-            const material = new THREE.MeshPhongMaterial({ color: shapeColors[0] });
-            currentShape = new THREE.Mesh(geometry, material);
-        }
-    }
-
-    currentShape.castShadow = true;
-    currentShape.receiveShadow = true;
-    scene.add(currentShape);
-    updateShapeRotation();
-
-    // Reapply current material settings
-    const opacity = parseFloat(document.getElementById('opacity').value) / 100;
-    const shininess = parseFloat(document.getElementById('shininess').value);
-    const wireframe = document.getElementById('wireframeToggle').checked;
-
-    updateMaterialProperty('opacity', opacity);
-    updateMaterialProperty('transparent', opacity < 1);
-    updateMaterialProperty('shininess', shininess);
-    updateMaterialProperty('wireframe', wireframe);
-}
-
-// Randomize all settings
+// Randomize settings
 function randomizeSettings() {
-    // Random shape
-    const shapes = ['cube', 'sphere', 'torus', 'pyramid', 'cylinder'];
+    const shapes = ['cube', 'sphere', 'torus', 'pyramid', 'cylinder', 'dodecahedron', 'octahedron', 'tetrahedron'];
     const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
     document.getElementById('shapeSelect').value = randomShape;
     createShape(randomShape);
 
-    // Random rotation
     rotationX = Math.random() * 360;
     rotationY = Math.random() * 360;
     rotationZ = Math.random() * 360;
@@ -531,15 +511,13 @@ function randomizeSettings() {
     document.getElementById('rotationX-value').textContent = `${Math.round(rotationX)}°`;
     document.getElementById('rotationY-value').textContent = `${Math.round(rotationY)}°`;
     document.getElementById('rotationZ-value').textContent = `${Math.round(rotationZ)}°`;
-    updateShapeRotation();
+    updateShapeTransform();
 
-    // Random light color
     const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
     document.getElementById('lightColor').value = randomColor;
     light.color = new THREE.Color(randomColor);
     lightHelper.material.color = new THREE.Color(randomColor);
 
-    // Random auto-rotation
     autoRotateX = Math.random() > 0.5;
     autoRotateY = Math.random() > 0.5;
     autoRotateZ = Math.random() > 0.5;
@@ -553,9 +531,18 @@ function takeScreenshot() {
     renderer.render(scene, camera);
     const dataURL = renderer.domElement.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `cube-viz-${Date.now()}.png`;
+    link.download = `visualizer-${Date.now()}.png`;
     link.href = dataURL;
     link.click();
+}
+
+// Toggle fullscreen
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.querySelector('.canvas-wrapper').requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
 }
 
 // Apply presets
@@ -564,6 +551,7 @@ function applyPreset(preset) {
         case 'default':
             resetAll();
             break;
+
         case 'sunset':
             document.getElementById('bgColor').value = '#ff6b35';
             scene.background = new THREE.Color('#ff6b35');
@@ -574,8 +562,9 @@ function applyPreset(preset) {
             document.getElementById('autoRotateY').checked = true;
             rotationSpeed = 0.5;
             document.getElementById('rotationSpeed').value = 0.5;
-            document.getElementById('rotationSpeed-value').textContent = '0.5';
+            document.getElementById('rotationSpeed-value').textContent = '0.5x';
             break;
+
         case 'disco':
             rainbowModeEnabled = true;
             document.getElementById('rainbowMode').checked = true;
@@ -587,10 +576,13 @@ function applyPreset(preset) {
             document.getElementById('autoRotateZ').checked = true;
             rotationSpeed = 2;
             document.getElementById('rotationSpeed').value = 2;
-            document.getElementById('rotationSpeed-value').textContent = '2.0';
+            document.getElementById('rotationSpeed-value').textContent = '2.0x';
             lightOrbitEnabled = true;
             document.getElementById('lightOrbit').checked = true;
+            document.getElementById('particles').checked = true;
+            createParticles();
             break;
+
         case 'ice':
             document.getElementById('bgColor').value = '#e3f2fd';
             scene.background = new THREE.Color('#e3f2fd');
@@ -598,29 +590,92 @@ function applyPreset(preset) {
             light.color = new THREE.Color('#00bcd4');
             lightHelper.material.color = new THREE.Color('#00bcd4');
             document.getElementById('fogToggle').checked = true;
-            scene.fog = new THREE.Fog(0xe3f2fd, 5, 15);
-            document.getElementById('metallicToggle').checked = true;
-            toggleMetallic(true);
+            scene.fog = new THREE.Fog(0xe3f2fd, 5, 20);
+            document.getElementById('metalness').value = 0.8;
+            if (currentShape) {
+                currentShape.material.metalness = 0.8;
+            }
+            document.getElementById('metalness-value').textContent = '0.8';
+            break;
+
+        case 'matrix':
+            document.getElementById('bgColor').value = '#000000';
+            scene.background = new THREE.Color('#000000');
+            document.getElementById('lightColor').value = '#00ff41';
+            light.color = new THREE.Color('#00ff41');
+            lightHelper.material.color = new THREE.Color('#00ff41');
+            document.getElementById('particles').checked = true;
+            createParticles();
+            if (particleSystem) {
+                particleSystem.material.color = new THREE.Color('#00ff41');
+            }
+            document.getElementById('wireframeToggle').checked = true;
+            if (currentShape) {
+                currentShape.material.wireframe = true;
+                currentShape.material.color = new THREE.Color('#00ff41');
+            }
+            autoRotateY = true;
+            document.getElementById('autoRotateY').checked = true;
+            break;
+
+        case 'galaxy':
+            document.getElementById('bgColor').value = '#1a1a2e';
+            scene.background = new THREE.Color('#1a1a2e');
+            document.getElementById('particles').checked = true;
+            createParticles();
+            if (particleSystem) {
+                particleSystem.material.color = new THREE.Color('#6366f1');
+                particleSystem.material.size = 0.08;
+            }
+            cameraOrbitEnabled = true;
+            document.getElementById('cameraOrbit').checked = true;
+            autoRotateY = true;
+            document.getElementById('autoRotateY').checked = true;
+            rotationSpeed = 0.3;
+            document.getElementById('rotationSpeed').value = 0.3;
+            document.getElementById('rotationSpeed-value').textContent = '0.3x';
+            document.getElementById('metalness').value = 0.9;
+            document.getElementById('roughness').value = 0.1;
+            if (currentShape) {
+                currentShape.material.metalness = 0.9;
+                currentShape.material.roughness = 0.1;
+            }
+            document.getElementById('metalness-value').textContent = '0.9';
+            document.getElementById('roughness-value').textContent = '0.1';
             break;
     }
 }
 
-// Reset all controls to default
+// Reset all
 function resetAll() {
-    // Reset shape
+    // Shape
     document.getElementById('shapeSelect').value = 'cube';
     createShape('cube');
 
-    // Reset wireframe and fog
+    // Toggles
     document.getElementById('wireframeToggle').checked = false;
+    document.getElementById('showAxes').checked = false;
+    document.getElementById('showGrid').checked = false;
     document.getElementById('fogToggle').checked = false;
     scene.fog = null;
 
-    // Reset background
-    document.getElementById('bgColor').value = '#f5f5f5';
-    scene.background = new THREE.Color(0xf5f5f5);
+    if (axes) {
+        scene.remove(axes);
+        axes = null;
+    }
+    if (grid) {
+        scene.remove(grid);
+        grid = null;
+    }
 
-    // Reset rotation sliders
+    // Background
+    document.getElementById('bgColor').value = '#1a1a2e';
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    // Rotation
+    rotationX = 0;
+    rotationY = 0;
+    rotationZ = 0;
     document.getElementById('rotationX').value = 0;
     document.getElementById('rotationY').value = 0;
     document.getElementById('rotationZ').value = 0;
@@ -628,12 +683,14 @@ function resetAll() {
     document.getElementById('rotationY-value').textContent = '0°';
     document.getElementById('rotationZ-value').textContent = '0°';
 
-    rotationX = 0;
-    rotationY = 0;
-    rotationZ = 0;
-    updateShapeRotation();
+    // Scale
+    scaleValue = 1.0;
+    document.getElementById('scale').value = 1;
+    document.getElementById('scale-value').textContent = '1.0';
 
-    // Reset auto-rotation
+    updateShapeTransform();
+
+    // Auto-rotation
     autoRotateX = false;
     autoRotateY = false;
     autoRotateZ = false;
@@ -642,52 +699,60 @@ function resetAll() {
     document.getElementById('autoRotateZ').checked = false;
     rotationSpeed = 1;
     document.getElementById('rotationSpeed').value = 1;
-    document.getElementById('rotationSpeed-value').textContent = '1.0';
+    document.getElementById('rotationSpeed-value').textContent = '1.0x';
 
-    // Reset zoom
+    // Animations
+    floatAnimation = false;
+    pulseAnimation = false;
+    document.getElementById('floatAnimation').checked = false;
+    document.getElementById('pulseAnimation').checked = false;
+
+    // Light
+    document.getElementById('lightColor').value = '#ffffff';
+    light.color = new THREE.Color(0xffffff);
+    lightHelper.material.color = new THREE.Color(0xffffff);
+    light.intensity = 1;
+    light.position.set(5, 5, 5);
+    lightHelper.position.set(5, 5, 5);
+    document.getElementById('lightIntensity').value = 1;
+    document.getElementById('lightIntensity-value').textContent = '1.0';
+    lightOrbitEnabled = false;
+    document.getElementById('lightOrbit').checked = false;
+    ambientLight.visible = true;
+    document.getElementById('ambientLight').checked = true;
+
+    // Material
+    document.getElementById('metalness').value = 0;
+    document.getElementById('roughness').value = 0.5;
+    document.getElementById('opacity').value = 100;
+    if (currentShape) {
+        currentShape.material.metalness = 0;
+        currentShape.material.roughness = 0.5;
+        currentShape.material.opacity = 1;
+        currentShape.material.transparent = false;
+        currentShape.material.envMap = null;
+    }
+    document.getElementById('metalness-value').textContent = '0.0';
+    document.getElementById('roughness-value').textContent = '0.5';
+    document.getElementById('opacity-value').textContent = '100%';
+    rainbowModeEnabled = false;
+    document.getElementById('rainbowMode').checked = false;
+    document.getElementById('envMap').checked = false;
+
+    // Effects
+    if (particleSystem) {
+        scene.remove(particleSystem);
+        particleSystem = null;
+    }
+    document.getElementById('particles').checked = false;
+
+    // Camera
+    camera.position.set(0, 0, 5);
     document.getElementById('zoomLevel').value = 5;
     document.getElementById('zoomLevel-value').textContent = '5';
-    camera.position.z = 5;
-
-    // Reset camera orbit
     cameraOrbitEnabled = false;
     document.getElementById('cameraOrbit').checked = false;
 
-    // Reset light controls
-    document.getElementById('lightColor').value = '#ffffff';
-    document.getElementById('lightIntensity').value = 1;
-    document.getElementById('lightX').value = 5;
-    document.getElementById('lightY').value = 5;
-    document.getElementById('lightZ').value = 5;
-
-    document.getElementById('lightIntensity-value').textContent = '1.0';
-    document.getElementById('lightX-value').textContent = '5';
-    document.getElementById('lightY-value').textContent = '5';
-    document.getElementById('lightZ-value').textContent = '5';
-
-    light.color = new THREE.Color(0xffffff);
-    light.intensity = 1;
-    light.position.set(5, 5, 5);
-
-    lightHelper.material.color = new THREE.Color(0xffffff);
-    lightHelper.position.set(5, 5, 5);
-
-    lightOrbitEnabled = false;
-    document.getElementById('lightOrbit').checked = false;
-
-    // Reset material properties
-    document.getElementById('shininess').value = 30;
-    document.getElementById('shininess-value').textContent = '30';
-    document.getElementById('opacity').value = 100;
-    document.getElementById('opacity-value').textContent = '100%';
-    document.getElementById('metallicToggle').checked = false;
-    toggleMetallic(false);
-
-    // Reset rainbow mode
-    rainbowModeEnabled = false;
-    document.getElementById('rainbowMode').checked = false;
-
-    // Reset pause
     isPaused = false;
 }
 
@@ -715,7 +780,20 @@ function animate() {
             document.getElementById('rotationZ-value').textContent = `${Math.round(rotationZ)}°`;
         }
 
-        updateShapeRotation();
+        updateShapeTransform();
+
+        // Float animation
+        if (floatAnimation && currentShape) {
+            currentShape.position.y = Math.sin(time) * 0.5;
+        } else if (currentShape) {
+            currentShape.position.y = 0;
+        }
+
+        // Pulse animation
+        if (pulseAnimation && currentShape) {
+            const pulse = 1 + Math.sin(time * 2) * 0.1;
+            currentShape.scale.set(scaleValue * pulse, scaleValue * pulse, scaleValue * pulse);
+        }
 
         // Light orbit
         if (lightOrbitEnabled) {
@@ -723,46 +801,42 @@ function animate() {
             light.position.x = Math.cos(time) * radius;
             light.position.z = Math.sin(time) * radius;
             lightHelper.position.copy(light.position);
-
-            document.getElementById('lightX').value = light.position.x.toFixed(1);
-            document.getElementById('lightZ').value = light.position.z.toFixed(1);
-            document.getElementById('lightX-value').textContent = light.position.x.toFixed(1);
-            document.getElementById('lightZ-value').textContent = light.position.z.toFixed(1);
         }
 
         // Camera orbit
         if (cameraOrbitEnabled) {
-            const radius = camera.position.z;
-            camera.position.x = Math.cos(time * 0.5) * radius * 0.3;
-            camera.position.y = Math.sin(time * 0.3) * radius * 0.2;
+            const radius = camera.position.length();
+            camera.position.x = Math.cos(time * 0.3) * radius;
+            camera.position.z = Math.sin(time * 0.3) * radius;
             camera.lookAt(0, 0, 0);
         }
 
         // Rainbow mode
         if (rainbowModeEnabled && currentShape) {
-            const hue = (time * 50) % 360;
+            const hue = (time * 30) % 360;
             const color = new THREE.Color().setHSL(hue / 360, 1, 0.5);
+            currentShape.material.color = color;
+        }
 
-            if (Array.isArray(currentShape.material)) {
-                currentShape.material.forEach(mat => mat.color = color);
-            } else {
-                currentShape.material.color = color;
-            }
+        // Particle rotation
+        if (particleSystem) {
+            particleSystem.rotation.y += 0.0005 * rotationSpeed;
         }
     }
 
     renderer.render(scene, camera);
 
-    // Update FPS counter
+    // Update FPS
     frames++;
     const currentTime = performance.now();
     if (currentTime >= lastTime + 1000) {
         fps = Math.round((frames * 1000) / (currentTime - lastTime));
-        document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+        document.getElementById('fps-counter').textContent = fps;
+        document.getElementById('object-count').textContent = scene.children.length;
         frames = 0;
         lastTime = currentTime;
     }
 }
 
-// Initialize when page loads
+// Start when DOM loaded
 window.addEventListener('DOMContentLoaded', init);
