@@ -17,6 +17,44 @@
             <div id="canvas-container"></div>
 
             <div class="controls-panel">
+                <div id="fps-counter">FPS: 0</div>
+
+                <h2>Shape & Visual</h2>
+
+                <div class="control-group">
+                    <label for="shapeSelect">
+                        <span class="label-text">Shape:</span>
+                    </label>
+                    <select id="shapeSelect" class="shape-select">
+                        <option value="cube">Cube</option>
+                        <option value="sphere">Sphere</option>
+                        <option value="torus">Torus</option>
+                        <option value="pyramid">Pyramid</option>
+                        <option value="cylinder">Cylinder</option>
+                    </select>
+                </div>
+
+                <div class="control-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="wireframeToggle">
+                        <span class="label-text">Wireframe Mode</span>
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label for="bgColor">
+                        <span class="label-text">Background:</span>
+                    </label>
+                    <input type="color" id="bgColor" value="#f5f5f5">
+                </div>
+
+                <div class="control-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="fogToggle">
+                        <span class="label-text">Fog Effect</span>
+                    </label>
+                </div>
+
                 <h2>Rotation Controls</h2>
 
                 <div class="control-group">
@@ -41,6 +79,48 @@
                         <span class="value-display" id="rotationZ-value">0°</span>
                     </label>
                     <input type="range" id="rotationZ" min="0" max="360" value="0" step="1">
+                </div>
+
+                <h2>Auto-Rotation</h2>
+
+                <div class="control-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="autoRotateX">
+                        <span class="label-text">Auto-Rotate X</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="autoRotateY">
+                        <span class="label-text">Auto-Rotate Y</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="autoRotateZ">
+                        <span class="label-text">Auto-Rotate Z</span>
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label for="rotationSpeed">
+                        <span class="label-text">Rotation Speed:</span>
+                        <span class="value-display" id="rotationSpeed-value">1.0</span>
+                    </label>
+                    <input type="range" id="rotationSpeed" min="0.1" max="5" value="1" step="0.1">
+                </div>
+
+                <h2>Camera & Zoom</h2>
+
+                <div class="control-group">
+                    <label for="zoomLevel">
+                        <span class="label-text">Zoom:</span>
+                        <span class="value-display" id="zoomLevel-value">5</span>
+                    </label>
+                    <input type="range" id="zoomLevel" min="2" max="15" value="5" step="0.5">
+                </div>
+
+                <div class="control-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="cameraOrbit">
+                        <span class="label-text">Camera Orbit</span>
+                    </label>
                 </div>
 
                 <h2>Light Controls</h2>
@@ -84,7 +164,66 @@
                     <input type="range" id="lightZ" min="-10" max="10" value="5" step="0.5">
                 </div>
 
+                <div class="control-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="lightOrbit">
+                        <span class="label-text">Light Orbit</span>
+                    </label>
+                </div>
+
+                <h2>Material Properties</h2>
+
+                <div class="control-group">
+                    <label for="shininess">
+                        <span class="label-text">Glossiness:</span>
+                        <span class="value-display" id="shininess-value">30</span>
+                    </label>
+                    <input type="range" id="shininess" min="0" max="100" value="30" step="1">
+                </div>
+
+                <div class="control-group">
+                    <label for="opacity">
+                        <span class="label-text">Transparency:</span>
+                        <span class="value-display" id="opacity-value">100%</span>
+                    </label>
+                    <input type="range" id="opacity" min="0" max="100" value="100" step="1">
+                </div>
+
+                <div class="control-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="metallicToggle">
+                        <span class="label-text">Metallic Material</span>
+                    </label>
+                </div>
+
+                <h2>Fun Extras</h2>
+
+                <div class="control-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="rainbowMode">
+                        <span class="label-text">Rainbow Mode</span>
+                    </label>
+                </div>
+
+                <div class="button-group">
+                    <button id="random-btn" class="action-button">Randomize</button>
+                    <button id="screenshot-btn" class="action-button">Screenshot</button>
+                </div>
+
+                <div class="preset-buttons">
+                    <h3>Presets</h3>
+                    <button class="preset-btn" data-preset="default">Default</button>
+                    <button class="preset-btn" data-preset="sunset">Sunset</button>
+                    <button class="preset-btn" data-preset="disco">Disco</button>
+                    <button class="preset-btn" data-preset="ice">Ice</button>
+                </div>
+
                 <button id="reset-btn" class="reset-button">Reset All</button>
+
+                <div class="keyboard-hints">
+                    <h3>Keyboard Shortcuts</h3>
+                    <p>Arrow Keys: Rotate | +/-: Zoom | Space: Pause | R: Reset</p>
+                </div>
             </div>
         </div>
     </div>
