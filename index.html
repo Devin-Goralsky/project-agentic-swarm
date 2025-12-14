@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Cube Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>3D Cube Visualizer</h1>
+            <p>Interact with the cube using the controls below</p>
+        </header>
+
+        <div class="main-content">
+            <div id="canvas-container"></div>
+
+            <div class="controls-panel">
+                <h2>Rotation Controls</h2>
+
+                <div class="control-group">
+                    <label for="rotationX">
+                        <span class="label-text">Rotation X:</span>
+                        <span class="value-display" id="rotationX-value">0°</span>
+                    </label>
+                    <input type="range" id="rotationX" min="0" max="360" value="0" step="1">
+                </div>
+
+                <div class="control-group">
+                    <label for="rotationY">
+                        <span class="label-text">Rotation Y:</span>
+                        <span class="value-display" id="rotationY-value">0°</span>
+                    </label>
+                    <input type="range" id="rotationY" min="0" max="360" value="0" step="1">
+                </div>
+
+                <div class="control-group">
+                    <label for="rotationZ">
+                        <span class="label-text">Rotation Z:</span>
+                        <span class="value-display" id="rotationZ-value">0°</span>
+                    </label>
+                    <input type="range" id="rotationZ" min="0" max="360" value="0" step="1">
+                </div>
+
+                <h2>Light Controls</h2>
+
+                <div class="control-group">
+                    <label for="lightColor">
+                        <span class="label-text">Light Color:</span>
+                    </label>
+                    <input type="color" id="lightColor" value="#ffffff">
+                </div>
+
+                <div class="control-group">
+                    <label for="lightIntensity">
+                        <span class="label-text">Light Intensity:</span>
+                        <span class="value-display" id="lightIntensity-value">1.0</span>
+                    </label>
+                    <input type="range" id="lightIntensity" min="0" max="3" value="1" step="0.1">
+                </div>
+
+                <div class="control-group">
+                    <label for="lightX">
+                        <span class="label-text">Light Position X:</span>
+                        <span class="value-display" id="lightX-value">5</span>
+                    </label>
+                    <input type="range" id="lightX" min="-10" max="10" value="5" step="0.5">
+                </div>
+
+                <div class="control-group">
+                    <label for="lightY">
+                        <span class="label-text">Light Position Y:</span>
+                        <span class="value-display" id="lightY-value">5</span>
+                    </label>
+                    <input type="range" id="lightY" min="-10" max="10" value="5" step="0.5">
+                </div>
+
+                <div class="control-group">
+                    <label for="lightZ">
+                        <span class="label-text">Light Position Z:</span>
+                        <span class="value-display" id="lightZ-value">5</span>
+                    </label>
+                    <input type="range" id="lightZ" min="-10" max="10" value="5" step="0.5">
+                </div>
+
+                <button id="reset-btn" class="reset-button">Reset All</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
